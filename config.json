@@ -1,0 +1,8 @@
+{
+    "client_id": "1462375131782447321",
+    "update_interval": 5,
+    "show_buttons": true,
+    "minimize_to_tray": true,
+    "auto_connect": true,
+    "start_minimized": true
+}
