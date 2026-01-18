@@ -26,4 +26,4 @@ The application acts as a bridge between two Inter-Process Communication (IPC) p
 ```bash
 git clone [https://github.com/NiccTM/MediaMonkey5-Discord-RPC.git](https://github.com/NiccTM/MediaMonkey5-Discord-RPC.git)
 pip install pypresence pywin32
-python mm5_rpc_v2.py
+python mm5_rpc_v1.2.py
