@@ -1,27 +1,31 @@
 import tkinter as tk
 from tkinter import scrolledtext
 import sys
+import threading
 import time
+import urllib.parse
+import requests
+import re  # <--- NEW: For cleaning text
 import win32com.client
 from pypresence import Presence
 
 # --- CONFIGURATION ---
-CLIENT_ID = '1462375131782447321' # Your App ID
+CLIENT_ID = '1462375131782447321' 
 
 class MM5RPCApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("MM5 Discord Bridge (v2)")
+        self.root.title("MM5 Discord Bridge (v1.2)")
         self.root.geometry("450x350")
         self.root.configure(bg="#2C2F33")
 
-        # State Variables
         self.rpc = None
         self.mm = None
         self.last_track = ""
         self.is_running = False
+        self.current_art_url = "logo"
 
-        # --- UI ELEMENTS ---
+        # --- UI SETUP ---
         self.status_label = tk.Label(root, text="Status: READY", fg="#99AAB5", bg="#2C2F33", font=("Segoe UI", 12, "bold"))
         self.status_label.pack(pady=10)
 
@@ -40,7 +44,6 @@ class MM5RPCApp:
         self.log_area = scrolledtext.ScrolledText(root, height=10, bg="#23272A", fg="#00FF00", font=("Consolas", 9))
         self.log_area.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
         
-        # Handle Window Close
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def log(self, message):
@@ -49,7 +52,6 @@ class MM5RPCApp:
 
     def start_bridge(self):
         if self.is_running: return
-        
         self.log("Connecting to Discord...")
         try:
             self.rpc = Presence(CLIENT_ID)
@@ -59,10 +61,7 @@ class MM5RPCApp:
             self.stop_btn.config(state=tk.NORMAL, bg="#ED4245")
             self.status_label.config(text="Status: ACTIVE", fg="#57F287")
             self.log("Connected! Polling MediaMonkey...")
-            
-            # START THE POLLING LOOP
             self.poll_mediamonkey() 
-            
         except Exception as e:
             self.log(f"Discord Connection Failed: {e}")
 
@@ -76,55 +75,95 @@ class MM5RPCApp:
             except: pass
         self.log("Bridge stopped.")
 
+    def clean_string(self, text):
+        """Removes [...], (...), and extra junk to help iTunes find matches"""
+        # Remove text in brackets [ ] and parentheses ( )
+        text = re.sub(r"[\(\[].*?[\)\]]", "", text)
+        return text.strip()
+
+    def fetch_album_art(self, artist, album):
+        """Searches iTunes API with a CLEANED string"""
+        try:
+            # Clean the names first!
+            clean_artist = self.clean_string(artist)
+            clean_album = self.clean_string(album)
+            
+            query = f"{clean_artist} {clean_album}"
+            encoded_query = urllib.parse.quote(query)
+            
+            # iTunes API Search
+            url = f"https://itunes.apple.com/search?term={encoded_query}&media=music&entity=album&limit=1"
+            response = requests.get(url, timeout=2)
+            data = response.json()
+            
+            if data['resultCount'] > 0:
+                art_url = data['results'][0]['artworkUrl100'].replace("100x100", "512x512")
+                self.current_art_url = art_url
+                self.log(f"Art Found for: {clean_album}")
+            else:
+                self.current_art_url = "logo"
+                self.log(f"Art NOT found. Searched: '{query}'")
+        except Exception as e:
+            self.current_art_url = "logo"
+            # self.log(f"Art Error: {e}") # Uncomment to debug
+
+    def update_discord(self, artist, title, album):
+        if not self.rpc: return
+        try:
+            self.rpc.update(
+                state=f"by {artist}",
+                details=f"{title}",
+                large_image=self.current_art_url,
+                large_text=album,
+                small_image="play",
+                small_text="Playing"
+            )
+        except: pass
+
     def poll_mediamonkey(self):
-        """This runs every 5 seconds on the MAIN THREAD"""
         if not self.is_running: return
 
-        # 1. Connect/Reconnect to MediaMonkey
         try:
             if self.mm is None:
-                # --- CRITICAL FIX: Use Dispatch instead of GetActiveObject ---
                 self.mm = win32com.client.Dispatch("SongsDB5.SDBApplication")
         except Exception:
             self.mm = None 
             self.status_label.config(text="Status: SEARCHING...", fg="#FEE75C")
-            self.track_label.config(text="Open MediaMonkey...")
 
-        # 2. Check Playback
         try:
-            if self.mm:
-                if self.mm.Player.IsPlaying:
-                    song = self.mm.Player.CurrentSong
-                    if song:
-                        track_key = f"{song.ArtistName} - {song.Title}"
+            if self.mm and self.mm.Player.IsPlaying:
+                song = self.mm.Player.CurrentSong
+                if song:
+                    track_key = f"{song.ArtistName} - {song.Title}"
+                    
+                    if track_key != self.last_track:
+                        self.last_track = track_key
+                        self.log(f"Playing: {track_key}")
+                        self.status_label.config(text="Status: BROADCASTING", fg="#57F287")
+                        self.track_label.config(text=track_key)
                         
-                        # Only update Discord if song changed
-                        if track_key != self.last_track:
-                            self.last_track = track_key
-                            self.log(f"Playing: {track_key}")
-                            self.status_label.config(text="Status: BROADCASTING", fg="#57F287")
-                            self.track_label.config(text=track_key)
-                            
-                            self.rpc.update(
-                                state=f"by {song.ArtistName}",
-                                details=f"{song.Title}",
-                                large_image="logo",
-                                small_image="play",
-                                small_text="Playing"
-                            )
-                else:
-                    # Paused logic
-                    if self.last_track != "PAUSED":
-                        self.rpc.clear()
-                        self.last_track = "PAUSED"
-                        self.status_label.config(text="Status: IDLE", fg="#FEE75C")
-                        self.track_label.config(text="Paused / Stopped")
+                        self.current_art_url = "logo"
+                        
+                        # Start background search with the raw data (cleaning happens inside)
+                        threading.Thread(target=self.fetch_album_art, args=(song.ArtistName, song.AlbumName), daemon=True).start()
+                        
+                        self.update_discord(song.ArtistName, song.Title, song.AlbumName)
+                    
+                    # If art was found after the first update, refresh Discord
+                    if self.current_art_url != "logo":
+                         self.update_discord(song.ArtistName, song.Title, song.AlbumName)
 
-        except Exception as e:
-            self.log(f"Error reading MM5: {e}")
-            self.mm = None # Force reconnect next loop
+            else:
+                if self.last_track != "PAUSED":
+                    try: self.rpc.clear()
+                    except: pass
+                    self.last_track = "PAUSED"
+                    self.status_label.config(text="Status: IDLE", fg="#FEE75C")
+                    self.track_label.config(text="Paused / Stopped")
 
-        # Schedule this function to run again in 5000ms (5 seconds)
+        except Exception:
+            self.mm = None
+
         self.root.after(5000, self.poll_mediamonkey)
 
     def on_close(self):
