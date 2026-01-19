@@ -38,8 +38,3 @@
     ```powershell
     pip install -r requirements.txt
     ```
-
-### Running the App
-Launch the bridge directly from source:
-```powershell
-python feeble_presence_v1.5.py
