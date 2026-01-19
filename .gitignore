@@ -1,12 +1,20 @@
-# Ignore build folders
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Environments
+.venv/
+env/
+venv/
+
+# Build artifacts
 build/
 dist/
-__pycache__/
 *.spec
 
-# Ignore VS Code settings
-.vscode/
+# Local config (optional: keep if you want users to have a template)
+# config.json
 
-# Ignore Python environment (if any)
-venv/
-env/
+# IDEs
+.vscode/
+.idea/
