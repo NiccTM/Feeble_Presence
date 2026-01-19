@@ -1,29 +1,45 @@
-# Feeble Presense
+<p align="center">
+  <img src="logo.ico" alt="Feeble Presence Logo" width="128"/>
+</p>
 
-A standalone middleware application that integrates MediaMonkey 5 playback state with the Discord Rich Presence (RPC) API.
+# 🎵 Feeble Presence (v1.5)
+**A High-Performance MediaMonkey 5 to Discord Rich Presence Bridge**
 
-## Technical Overview
-MediaMonkey 5 operates in a sandboxed Chromium environment, which limits the stability of internal network requests. This project decouples the RPC logic into an external process, ensuring stability and zero overhead on the media player itself.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![MediaMonkey 5](https://img.shields.io/badge/MediaMonkey-5.0%2B-orange.svg)](https://www.mediamonkey.com/)
 
-### Architecture
-The application acts as a bridge between two Inter-Process Communication (IPC) protocols:
-1.  **Input (COM):** Polls the `SongsDB5.SDBApplication` Windows COM interface to retrieve real-time telemetry (Track, Artist, Playback State) from the active MediaMonkey process.
-2.  **Output (IPC):** Formats the telemetry into a JSON payload and transmits it to the local Discord client via Unix Domain Sockets (or Named Pipes on Windows) using the `pypresence` library.
+---
 
-### Implementation Details
-* **Language:** Python 3.14
-* **Concurrency:** Single-threaded event loop (Tkinter) with optimized polling (5000ms interval) to prevent race conditions and minimize CPU usage.
-* **Distribution:** Compiled to PE format (Portable Executable) via PyInstaller, bundling the Python runtime for zero-dependency execution.
+## 🚀 Overview
+**Feeble Presence** is an engineering-focused utility that bridges your local **MediaMonkey 5** playback with **Discord Rich Presence**. It monitors your media library via the COM interface and dynamically updates your profile with high-quality metadata and artwork.
 
-## Installation
+## ✨ Key Features
+* **Dynamic Metadata Sync:** Real-time broadcasting of Track Title, Artist, and Album info.
+* **Intelligent Artwork Discovery:** Automatically fetches high-resolution album covers via the iTunes Search API.
+* **Unobtrusive Design:** Minimizes completely to the Windows System Tray to keep your workspace clean.
+* **Interactive Rich Presence:** Includes "Listen on YouTube" and "Search Apple Music" buttons for your Discord friends.
+* **Robust Configuration:** Persistent `config.json` allows for auto-connect and customizable update intervals.
 
-### Option 1: Standalone Binary (Recommended)
-1.  Download `Feeble_Presense_V1.3_Stable.exe` from the [Releases Page](https://github.com/NiccTM/MediaMonkey5-Discord-RPC/releases).
-2.  Run the executable while MediaMonkey 5 is open.
-3.  The bridge will automatically attach to the active process PID.
+## 🛠️ Technical Specifications
+* **Frontend:** `CustomTkinter` for a modern, hardware-accelerated dark theme UI.
+* **Automation:** Interfaces with the `SongsDB5.SDBApplication` COM object via `pywin32`.
+* **Network:** Asynchronous threading for artwork fetching to ensure zero UI lag.
+* **Asset Management:** Custom multi-layer `.ico` handling (16px to 256px) for native Windows title bar and taskbar compatibility.
 
-### Option 2: Run from Source
-```bash
-git clone [https://github.com/NiccTM/MediaMonkey5-Discord-RPC.git](https://github.com/NiccTM/MediaMonkey5-Discord-RPC.git)
-pip install pypresence pywin32
-python feeble_presense_v1.3.py
+## 📦 Getting Started
+
+### Installation
+1.  **Clone the Repository:**
+    ```powershell
+    git clone [https://github.com/NiccTM/MediaMonkey5-Discord-RPC.git](https://github.com/NiccTM/MediaMonkey5-Discord-RPC.git)
+    ```
+2.  **Install Dependencies:**
+    ```powershell
+    pip install -r requirements.txt
+    ```
+
+### Running the App
+Launch the bridge directly from source:
+```powershell
+python feeble_presence_v1.5.py
